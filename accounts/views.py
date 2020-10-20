@@ -4,6 +4,10 @@ from accounts.models import Order, Customer, Product
 
 from .forms import OrderForm
 
+from django.forms import inlineformset_factory
+
+from .filters import OrderFilter
+
 def home(request):
     orders = Order.objects.all()
     customers = Customer.objects.all()
@@ -28,21 +32,31 @@ def customer(request,pk):
     orders = customer.order_set.all()
     order_count = orders.count()
 
+    myFilter = OrderFilter(request.GET, queryset=orders)
+    orders = myFilter.qs   #qs-quesryset
+
     context = {
         'customer': customer,
         'orders': orders,
-        'order_count': order_count}
+        'order_count': order_count,
+        'myFilter':myFilter,
+    }
     return render(request,'accounts/customer.html',context)
 
 def createOrder(request,pk):
-    # customer = Customer.objects.get(id=pk)
-    form = OrderForm()
+    OrderFormSet = inlineformset_factory(Customer, Order, fields=('product','status'),extra=10)
+    customer = Customer.objects.get(id=pk)
+
+    formset = OrderFormSet(queryset=Order.objects.none(),instance=customer)
+
+    # form = OrderForm(initial = {'customer':customer})
     if request.method == 'POST':
-        form = OrderForm(request.POST)
-        if form.is_valid():
-            form.save()
+        # form = OrderForm(request.POST)
+        formset = OrderFormSet(request.POST, instance=customer)
+        if formset.is_valid():
+            formset.save()
             return redirect('/')
-    context = {'form':form}
+    context = {'formset':formset}
     return render(request,'accounts/order_form.html',context)
 
 def updateOrder(request,pk):
